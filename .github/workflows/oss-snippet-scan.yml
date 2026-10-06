@@ -1,0 +1,49 @@
+# PR で追加・変更されたファイルを SCANOSS の無料 API で照合し、
+# 既知の OSS コードとの一致を報告する。コピーレフト系 License と一致したら失敗させる。
+#
+# 送信されるのはソースコード本体ではなく、コードから計算した指紋 (ハッシュ値) のみ。
+# 無料 API は回数制限があるため、業務で本格運用する場合は API キーの契約を検討すること。
+name: OSS snippet scan
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: List changed files
+        id: changed
+        run: |
+          git diff --name-only --diff-filter=AM \
+            "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" > changed.txt
+          echo "Changed files:"; cat changed.txt
+          echo "count=$(wc -l < changed.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@v5
+        if: steps.changed.outputs.count != '0'
+        with:
+          python-version: "3.12"
+
+      - name: Scan with SCANOSS
+        if: steps.changed.outputs.count != '0'
+        run: |
+          pip install scanoss
+          scanoss-py scan --files-from changed.txt --output results.json
+
+      - name: Check results
+        if: steps.changed.outputs.count != '0'
+        run: python scripts/check_scanoss.py results.json
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.changed.outputs.count != '0'
+        with:
+          name: scanoss-results
+          path: results.json
