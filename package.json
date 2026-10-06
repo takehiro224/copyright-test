@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "serve": "http-server public -p 3002 -c-1"
+  }
+}

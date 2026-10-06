@@ -1,0 +1,5 @@
+{
+  "name": "JavaScript Training",
+  "build": { "dockerfile": "Dockerfile" },
+  "forwardPorts": [3001]
+}
